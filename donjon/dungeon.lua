@@ -20,7 +20,7 @@ local function printDungeon(dungeon)
             local cell = dungeon.cell[y][x]
             if cell == 0 then
                 s = s .. '.'
-            elseif bitIsSet(cell, Cell.PERIMETER) then
+            elseif hasbit(cell, Cell.PERIMETER) then
                 s = s .. '#'
             else
                 s = s .. ' '
@@ -218,12 +218,13 @@ local function soundRoom(dungeon, x1, y1, x2, y2)
 
     for x = x1, x2 do
         for y = y1, y2 do
-            if bit.band(dungeon.cell[y][x], Cell.BLOCKED) == Cell.BLOCKED then
+            local cell = dungeon.cell[y][x]
+            if hasbit(cell, Cell.BLOCKED) then 
                 info.blocked = true
                 return info
             end
 
-            if bit.band(dungeon.cell[y][x], Cell.ROOM) == Cell.ROOM then
+            if hasbit(cell, Cell.ROOM) then
                 local roomId = bit.rshift(bit.band(dungeon.cell[y][x], Cell.ROOM_ID), 6)
                 local count = info[roomId] or 0
                 info[roomId] = count + 1 
@@ -353,9 +354,9 @@ local function emplaceRoom(dungeon, room)
         for y = y1, y2 do
             local cell = dungeon.cell[y][x]
 
-            if bit.band(cell, Cell.ENTRANCE) then
+            if hasbit(cell, Cell.ENTRANCE) then
                 cell = bit.band(cell, bit.bnot(Cell.ESPACE))
-            elseif bit.band(cell, Cell.PERIMETER) then
+            elseif hasbit(cell, Cell.PERIMETER) then
                 cell = bit.band(cell, bit.bnot(Cell.PERIMETER))
             end
 

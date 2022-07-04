@@ -5,6 +5,7 @@
     written by Wolfgang Schreurs <info+donjon@wolftrail.net>
 --]]
 
+-- return a list of keys from a table
 function getKeys(tbl)
     local keys = {}
 
@@ -15,6 +16,15 @@ function getKeys(tbl)
     return keys
 end
 
-function bitIsSet(v, b)
+-- bit manipulation functions: https://stackoverflow.com/a/263738/250164
+
+-- check if a bit is set
+function hasbit(v, b)
     return bit.band(v, b) == b
 end
+
+--[[
+function clearbit(v, b)
+    return bit.band(v, bit.bnot(b))
+end
+--]]
