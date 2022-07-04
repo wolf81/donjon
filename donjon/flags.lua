@@ -1,3 +1,11 @@
+--[[
+    flags.lua
+    cell flags for use with the dungeon generator
+
+    written by Wolfgang Schreurs <info+donjon@wolftrail.net>
+    based on code from drow <drow@bin.sh>
+--]]
+
 Cell = {
     NOTHING     = 0x0,
     BLOCKED     = 0x1,

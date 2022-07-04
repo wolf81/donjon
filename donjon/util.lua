@@ -1,3 +1,10 @@
+--[[
+    util.lua
+    utility functions
+
+    written by Wolfgang Schreurs <info+donjon@wolftrail.net>
+--]]
+
 function getKeys(tbl)
     local keys = {}
 

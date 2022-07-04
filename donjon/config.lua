@@ -1,3 +1,15 @@
+--[[
+    config.lua
+    configuration options for the dungeon generator
+
+    written by Wolfgang Schreurs <info+donjon@wolftrail.net>
+    based on code from drow <drow@bin.sh>
+--]]
+
+local PATH = (...):match("(.-)[^%.]+$") 
+
+require(PATH .. '.flags')
+
 DungeonSize = {
     fine = { size = 200, cell = 18 },
     tiny = { size = 318, cell = 18 },
@@ -91,4 +103,32 @@ AddStairs = {
     no = {},
     yes = {},
     many = {},
+}
+
+Doors = {
+    none = { 
+        ['01-15'] = Cell.ARCH,
+    },
+    basic = { 
+        ['01-15'] = Cell.ARCH,
+        ['16-60'] = Cell.DOOR,        
+    },
+    secure = { 
+        ['01-15'] = Cell.ARCH,
+        ['16-60'] = Cell.DOOR,
+        ['61-75'] = Cell.LOCKED,
+    },
+    standard = { 
+        ['01-15'] = Cell.ARCH,
+        ['16-60'] = Cell.DOOR,
+        ['61-75'] = Cell.LOCKED,
+        ['76-90'] = Cell.TRAPPED,
+        ['91-100'] = Cell.SECRET,
+        ['101-110'] = Cell.PORTC,
+    },
+    deathtrap = {
+        ['01-15'] = Cell.ARCH,
+        ['16-30'] = Cell.TRAPPED,
+        ['31-40'] = Cell.SECRET,
+    },
 }
