@@ -14,3 +14,7 @@ function getKeys(tbl)
 
     return keys
 end
+
+function bitIsSet(v, b)
+    return bit.band(v, b) == b
+end

@@ -19,9 +19,11 @@ local function printDungeon(dungeon)
         for x = 0, dungeon.n_cols - 1 do
             local cell = dungeon.cell[y][x]
             if cell == 0 then
+                s = s .. '.'
+            elseif bitIsSet(cell, Cell.PERIMETER) then
                 s = s .. '#'
             else
-                s = s .. '.'
+                s = s .. ' '
             end
         end
         s = s .. '\n'
@@ -74,17 +76,7 @@ local function init(params)
     return dungeon
 end
 
---[[
-    var b = get_dc("room_size", a),
-        c = get_dc("room_layout", a);
-    a.huge_rooms = b.huge;
-    a.complex_rooms = c.complex;
-    a.n_rooms = 0;
-    a.room = [];
-    return a = a.room_layout == "dense" ? dense_rooms(a) : scatter_rooms(a)
---]]
-
--- allocate a proper room count for a dungeon
+-- allocate a room count
 local function allocRooms(dungeon, room_size)
     local area = dungeon.n_cols * dungeon.n_rows
     local room_size = RoomSize[room_size or dungeon.room_size]
@@ -185,28 +177,32 @@ function emplace_room(a, b) {
 
 --]]
 
+-- position room
 local function setRoom(dungeon, room)
     room = room or {}
 
     local r_size = RoomSize[room.size or dungeon.room_size]
-    local s = r_size.size or 2
-    local r = r_size.radix or 5
+    local size = r_size.size or 2
+    local radix = r_size.radix or 5
+
+    room.size = size
+    room.radix = radix
 
     if not room.height then
         if room.i then
-            local i = math.max(dungeon.n_i - r - room.i, 0)
-            room.height = prng.random(i < r and i or r) + s
+            local i = math.max(dungeon.n_i - radix - room.i, 0)
+            room.height = prng.random(i < radix and i or radix) + size
         else
-            room.height = prng.random(r) + s
+            room.height = prng.random(radix) + size
         end
     end
 
     if not room.width then
         if room.j then
-            local j = math.max(dungeon.n_j - r - room.j, 0)
-            room.width = prng.random(j < r and j or r) + s
+            local j = math.max(dungeon.n_j - randix - room.j, 0)
+            room.width = prng.random(j < radix and j or radix) + size
         else
-            room.width = prng.random(r) + s
+            room.width = prng.random(radix) + size
         end
     end
 
@@ -216,22 +212,7 @@ local function setRoom(dungeon, room)
     return room
 end
 
---[[
- a: {
-            var k = {};
-            for (e = b; e <= d; e++)
-                for (h = g; h <= c; h++) {
-                    if (a.cell[e][h] & 1) {
-                        k = {
-                            blocked: 1
-                        };
-                        break a
-                    }
-                    a.cell[e][h] & 2 && (k[(a.cell[e][h] & 65472) >> 6] += 1)
-                }
-        }
-]]
-
+-- check if a room exists between x1, y1 and x2, y2
 local function soundRoom(dungeon, x1, y1, x2, y2)
     local info = {}
 
@@ -332,6 +313,7 @@ function emplace_room(a, b) {
 }
 ]]
 
+-- add a room
 local function emplaceRoom(dungeon, room)
     if dungeon.n_rooms == 999 then return dungeon end
 
@@ -381,44 +363,63 @@ local function emplaceRoom(dungeon, room)
         end
     end
 
---[[
-k = $H(k).keys();
-        e = k.length;
-        if (0 == e) k = a.n_rooms + 1, a.n_rooms = k;
-        else if (1 == e)
-            if (a.complex_rooms) {
-                if (k = k[0], k != f.complex_id) return a
-            } else return a;
-        else return a;
-        for (e = b; e <= d; e++)
-            for (h = g; h <= c; h++) a.cell[e][h] & 32 ? a.cell[e][h] &= 12648415 :
-                a.cell[e][h] & 16 && (a.cell[e][h] &= -17), a.cell[e][h] = a.cell[e][h] | 2 | k << 6;
-        f = {
-            id: k,
-            size: f.size,
-            row: b,
-            col: g,
-            north: b,
-            south: d,
-            west: g,
-            east: c,
-            height: 10 * (d - b + 1),
-            width: 10 * (c - g + 1),
-            door: {
-                north: [],
-                south: [],
-                west: [],
-                east: []
-            }
-        };
-        (e = a.room[k]) ? e.complex ? e.complex.push(f) : (complex = {
-            complex: [e, f]
-        }, a.room[k] = complex): a.room[k] = f;
-        for (e = b - 1; e <= d + 1; e++) a.cell[e][g - 1] & 34 || (a.cell[e][g - 1] |= 16), a.cell[e][c + 1] & 34 || (a.cell[e][c + 1] |= 16);
-        for (h = g - 1; h <= c + 1; h++) a.cell[b - 1][h] & 34 || (a.cell[b - 1][h] |= 16), a.cell[d + 1][h] & 34 || (a.cell[d + 1][h] |=
-            16);
-]]
+    room = {
+        id = room_id,
+        size = room.size,
+        row = y1,
+        col = x1,
+        north = y1,
+        south = y2,
+        west = x1,
+        east = x2,
+        height = 10 * (y2 - y1 + 1),
+        width = 10 * (x2 - x1 + 1),
+        door = {
+            north = {},
+            south = {},
+            east = {},
+            west = {},
+        }
+    }
 
+    local d_room = dungeon.room[room_id]
+    if d_room then
+        if d_room.complex then
+            table.insert(dungeon.room[room_id].complex, room)
+        else
+            print('add complex room')
+            dungeon.room[room_id] = {
+                complex = { d_room, room }
+            }
+        end
+    else
+        dungeon.room[room_id] = room
+    end
+
+    local room_entrance = bit.bor(Cell.ROOM, Cell.ENTRANCE)
+    for x = x1 - 1, x2 + 1 do 
+        local cell = dungeon.cell[y1 - 1][x]    
+        if bit.band(cell, room_entrance) then
+            dungeon.cell[y1 - 1][x] = bit.bor(cell, Cell.PERIMETER)
+        end
+
+        local cell = dungeon.cell[y2 + 1][x]    
+        if bit.band(cell, room_entrance) then
+            dungeon.cell[y2 + 1][x] = bit.bor(cell, Cell.PERIMETER)            
+        end
+    end
+
+    for y = y1 - 1, y2 + 1 do 
+        local cell = dungeon.cell[y][x1 - 1]
+        if bit.band(cell, room_entrance) then
+            dungeon.cell[y][x1 - 1] = bit.bor(cell, Cell.PERIMETER)
+        end
+
+        local cell = dungeon.cell[y][x2 + 1]
+        if bit.band(cell, room_entrance) == 0 then
+            dungeon.cell[y][x2 + 1] = bit.bor(cell, Cell.PERIMETER)            
+        end
+    end
 
     return dungeon
 end
@@ -447,7 +448,7 @@ local function emplaceRooms(dungeon)
     end
 
     print()
-    
+
     return dungeon
 end
 
