@@ -7,9 +7,8 @@ local dungeon = donjon.dungeon
 function love.load(args)
     print(donjon)
 
-    prng.randomseed('Dungeon of fiery death!')
-
     local d = dungeon.generate({
+        seed = 'a',
         dungeon_layout = 'rectangle',
         dungeon_size = 'dimin',
         room_layout = 'scattered',
