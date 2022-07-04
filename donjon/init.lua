@@ -369,5 +369,6 @@ Creative Commons Notice
 }
 
 M.prng = require(PATH .. '.prng')
+M.dungeon = require(PATH .. '.dungeon')
 
 return M

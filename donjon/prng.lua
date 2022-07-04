@@ -10,7 +10,7 @@
 local seed = 1
 
 -- the maximum number used to calculate float values
-local FLOAT_INT_MAX = 32768
+local FLOAT_INT_MAX = 0x8000
 
 local random_i = function(max)
     -- force use of 64 bit numbers here by using hex constants and ULL 
@@ -46,6 +46,7 @@ end
 
 -- seed the random number generator with a number, string or if no argument
 -- is provided, with an integer based on time
+-- this function will also return the seed
 local randomseed = function(s)
     local seed_type = type(s)
     if seed_type == 'number' then
@@ -57,6 +58,8 @@ local randomseed = function(s)
     else
         error('invalid argument, provide a number, string or no argument')
     end
+
+    return seed
 end
 
 -- the module
