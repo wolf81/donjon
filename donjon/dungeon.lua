@@ -75,43 +75,12 @@ end
     return a = a.room_layout == "dense" ? dense_rooms(a) : scatter_rooms(a)
 --]]
 
-
---[[
-    function ba(a, b) {
-        b = J.room_size[b || a.room_size];
-        b = (b.size || 2) + (b.radix || 5) + 1;
-        b = 2 * Math.floor(a.n_cols * a.n_rows / (b * b));
-        "sparse" == a.room_layout && (b /= 13);
-        return b
-    }
-]]
-
---[[
-function alloc_rooms(a, b) {
-    a = a;
-    var c = b || a.room_size;
-    b = a.n_cols * a.n_rows;
-    var d = dc.room_size[c];
-    c = d.size || 2;
-    d = d.radix || 5;
-    c = c + d + 1;
-    c = c * c;
-    b = Math.floor(b / c) * 2;
-    if (a.room_layout == "sparse") b /= 13;
-    return b
-}
-]]
+-- allocate a proper room count for a dungeon
 local function allocRooms(dungeon, params, room_size)
-    local layout = RoomLayout[params.room_layout]
-
     local area = dungeon.n_cols * dungeon.n_rows
-    local r_size = RoomSize[room_size or params.room_size]
-    local s = r_size.size or 2
-    local r = r_size.radix or 5
-    size = size + radix + 1
-    size = size * size
-    local count = math.floor(area / size) * 2
-    
+    local room_size = RoomSize[room_size or params.room_size]
+    local count = (room_size.size or 2) + (room_size.radix or 5) + 1
+    count = 2 * math.floor(area / (count * count))
     if layout == RoomLayout.sparse then
         count = math.floor(count / 13)
     end
