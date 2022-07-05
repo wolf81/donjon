@@ -21,6 +21,8 @@ local function printDungeon(dungeon)
             local cell = dungeon.cell[y][x]
             if cell == 0 then
                 s = s .. '.'
+            elseif hasbit(cell, Cell.ENTRANCE) then
+                s = s .. '+'
             elseif hasbit(cell, Cell.PERIMETER) then
                 s = s .. '#'
             else
@@ -343,7 +345,7 @@ local function checkSill(dungeon, room, y, x, dir)
         dir = dir,
         door_r = y1,
         door_c = x1,
-        out_id = room_id,
+        out_id = room_id > 0 and room.id or nil,
     }
 end
 
@@ -357,36 +359,36 @@ local function doorSills(dungeon, room)
 
         if n >= 3 then
             for x = w, e, 2 do
-                local door = checkSill(dungeon, room, n, x, 'north')
-                if door then
-                    sills[#sills + 1] = door
+                local sill = checkSill(dungeon, room, n, x, 'north')
+                if sill then
+                    sills[#sills + 1] = sill
                 end
             end
         end
 
         if s <= dungeon.n_rows - 3 then
             for x = w, e, 2 do
-                local door = checkSill(dungeon, room, s, x, 'south')
-                if door then
-                    sills[#sills + 1] = door
+                local sill = checkSill(dungeon, room, s, x, 'south')
+                if sill then
+                    sills[#sills + 1] = sill
                 end
             end            
         end
 
         if w >= 3 then
             for y = n, s, 2 do
-                local door = checkSill(dungeon, room, y, w, 'west')
-                if door then
-                    sills[#sills + 1] = door
+                local sill = checkSill(dungeon, room, y, w, 'west')
+                if sill then
+                    sills[#sills + 1] = sill
                 end
             end                        
         end
 
         if e <= dungeon.n_cols - 3 then
             for y = n, s, 2 do
-                local door = checkSill(dungeon, room, y, e, 'east')
-                if door then
-                    sills[#sills + 1] = door
+                local sill = checkSill(dungeon, room, y, e, 'east')
+                if sill then
+                    sills[#sills + 1] = sill
                 end
             end                        
         end
@@ -412,6 +414,28 @@ local function allocOpens(dungeon, room)
     return opens + prng.random(opens)
 end
 
+local function openDoor(dungeon, room, sill)
+    local doors = Doors[dungeon.doors]
+    print('open door')
+    local dr = sill.door_r
+    local dc = sill.door_c
+    local sr = sill.sill_r
+    local sc = sill.sill_c
+    local out_id = sill.out_id
+
+    local dx, dy = unpack(Direction[sill.dir])
+
+    for i = 0, 2 do
+        local y = sr + dy * i
+        local x = sc + dx * i
+        local cell = dungeon.cell[y][x] 
+        dungeon.cell[y][x] = bit.band(cell, bit.bnot(Cell.PERIMETER))
+        dungeon.cell[y][x] = bit.bor(cell, Cell.ENTRANCE)
+    end
+
+    return dungeon
+end
+
 local function openRoom(dungeon, room)
     local sills = doorSills(dungeon, room)
     if #sills == 0 then return dungeon end
@@ -419,10 +443,49 @@ local function openRoom(dungeon, room)
     local n_open = allocOpens(dungeon, room)
     print('open: ' .. n_open)
 
+    prng.randomseed(12)
+    print(prng.random(50), prng.random(30), prng.random(10))
+
+    local arr = { 'a', 'b', 'c', 'd', 'e', 'f' }
+print()
+print()
+    for i = 1, 3 do
+        local l = prng.random(#arr)
+        print(#arr, l)
+        splice(arr, l, 1)
+        print(table.concat(arr, ','))
+        local d = shift(arr)
+        print(d)
+        print()
+    end
+
+
+    error()
+
     for i = 1, n_open do
+        print('1', #sills)
         splice(sills, prng.random(#sills))
+        print('2', #sills)
         local sill = shift(sills)
         if not sill then break end
+
+        local y = sill.door_r
+        local x = sill.door_c
+        local cell = dungeon.cell[y][x]
+        if not hasbit(cell, Cell.DOORSPACE) then
+            if sill.out_id then
+                local ids = { sill.out_id, room.id }
+                table.sort(ids)                
+                ids = table.concat(ids, ',')
+
+                if not connect[ids] then
+                    dungeon = openDoor(dungeon, room, sill)
+                    connect[ids] = true
+                end
+            else
+                dungeon = openDoor(dungeon, room, sill)
+            end
+        end
     end
 
    return dungeon 

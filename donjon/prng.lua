@@ -15,9 +15,11 @@ local FLOAT_INT_MAX = 0x8000
 local random_i = function(max)
     -- force use of 64 bit numbers here by using hex constants and ULL 
     -- annotation, to prevent loss of precision, in line with JavaScript code
-    seed = 0x41C64E6D * seed + 12345ULL
+    seed = 0x41C64E6D * seed + 0x3039
     seed = bit.band(seed, 0x7FFFFFFF)
-    return tonumber(bit.rshift(seed, 8) % max)
+    seed = bit.rshift(seed, 8) % max
+
+    return seed
 end
 
 -- generate a random number

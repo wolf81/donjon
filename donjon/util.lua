@@ -22,8 +22,10 @@ function splice(list, start, count)
         count = #list - start
     end
 
-    for i = start + count, start + 1, -1 do
-        table.remove(list, i)
+    while count > 0 do
+        table.remove(list, start + 1)
+
+        count = count - 1
     end
 end
 
