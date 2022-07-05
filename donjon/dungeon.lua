@@ -14,17 +14,71 @@ require(PATH .. '.util')
 require(PATH .. '.flags')
 require(PATH .. '.direction')
 
+local function keyRange(str)
+    -- range up to 100, e.g. '65-00' => 65, 100
+    local a, b = string.match(str, '(%d+)-00'), nil
+    if a then return tonumber(a, 10), 100 end
+
+    -- range under 100, e.g. '65-75' => 65, 75
+    a, b = string.match(str, '(%d+)-(%d+)')
+    if a and b then return tonumber(a, 10), tonumber(b, 10) end
+
+    -- range of value 100, e.g. '00' => 100, 100
+    if str == '00' then return 100, 100 end
+
+    -- range of single value under 100, e.g. '15' => 15, 15
+    return tonumber(str, 10), tonumber(str, 10)
+end
+
+-- process each key in a table
+-- retrieve the key range (e.g. '01-35', '36-45', '46-60')
+-- return the highest value from all key ranges, so in this example: 60
+local function scaleTable(tbl)
+    local c = 0
+
+    for str, _ in pairs(tbl) do
+        local _, b = keyRange(str)
+        if b > c then c = b end
+    end
+
+    return c
+end
+
+local function selectFromList(list)
+    return list[prng.random(#list) + 1]
+end
+
+local function selectFromTable(tbl)
+    local scale = scaleTable(tbl)
+    scale = prng.random(scale) + 1
+    for key, _ in pairs(tbl) do
+        local a, b = keyRange(key)
+        if scale >= a and scale <= b then return tbl[key] end
+    end
+    return nil
+end
+
+local function selectFrom(tbl)
+    if isArray(tbl) then
+        return selectFromList(tbl)
+    else
+        return selectFromTable(tbl)
+    end
+end
+
 local function printDungeon(dungeon)
     local s = ''
     for y = 0, dungeon.n_rows - 1 do
         for x = 0, dungeon.n_cols - 1 do
             local cell = dungeon.cell[y][x]
-            if cell == 0 then
-                s = s .. '.'
-            elseif hasbit(cell, Cell.ENTRANCE) then
+
+            if hasmask(cell, Cell.DOORSPACE) then
                 s = s .. '+'
             elseif hasbit(cell, Cell.PERIMETER) then
                 s = s .. '#'
+            elseif hasbit(cell, Cell.ROOM) then
+                local c = bit.band(bit.rshift(cell, 24), 0xFF)
+                s = s .. (c ~= 0 and string.char(c) or '.')
             else
                 s = s .. ' '
             end
@@ -329,7 +383,7 @@ local function checkSill(dungeon, room, y, x, dir)
     local cell = dungeon.cell[y1][x1]
 
     if not hasbit(cell, Cell.PERIMETER) then return false end
-    if hasbit(cell, Cell.BLOCK_DOOR) then return false end
+    if hasmask(cell, Cell.BLOCK_DOOR) then return false end
 
     local x2, y2 = x1 + dx, y1 + dy
     cell = dungeon.cell[y2][x2]
@@ -415,7 +469,6 @@ local function allocOpens(dungeon, room)
 end
 
 local function openDoor(dungeon, room, sill)
-    local doors = Doors[dungeon.doors]
     print('open door')
     local dr = sill.door_r
     local dc = sill.door_c
@@ -432,6 +485,64 @@ local function openDoor(dungeon, room, sill)
         dungeon.cell[y][x] = bit.band(cell, bit.bnot(Cell.PERIMETER))
         dungeon.cell[y][x] = bit.bor(cell, Cell.ENTRANCE)
         print('add entrance @ ' .. x .. '.' .. y)
+    end
+
+    local door = selectFromTable(Doors[dungeon.doors])
+
+    local d_info = {
+        row = dr,
+        col = dc,
+    }
+
+    local cell = dungeon.cell[dr][dc]
+
+    dungeon.cell[dr][dc] = bit.bor(cell, door)
+    
+    if door == Cell.ARCH then
+        d_info.key = 'arch'
+        d_info.type = 'Archway'
+    elseif door == Cell.DOOR then        
+        d_info.key = 'open'
+        d_info.type = 'Unlocked Door'
+    elseif door == Cell.LOCKED then
+        d_info.key = 'lock'
+        d_info.type = 'Locked Door'
+    elseif door == Cell.TRAPPED then
+        d_info.key = 'lock'
+        d_info.type = 'Locked Door'
+    elseif door == Cell.SECRET then
+        d_info.key = 'secret'
+        d_info.type = 'Secret Door'
+    elseif door == Cell.PORTC then
+        d_info.key = 'portc'
+        d_info.type = 'Portcullis'        
+    end
+
+    if out_id then d_info.out_id = out_id end
+
+    room.door[#room.door + 1] = d_info
+    room.last_door = d_info
+
+    return dungeon
+end
+
+local function labelRooms(dungeon, room)
+    for i = 1, dungeon.n_rooms do
+        local room = dungeon.room[i]
+        local room_id = tostring(room.id)
+        local len = #room_id
+        local y = math.floor((room.north + room.south) / 2)
+        local x = math.floor((room.west + room.east - len) / 2) + 1
+
+        for f = 1, len do
+            local cell = dungeon.cell[y][x + f - 1]
+            local char = string.byte(string.sub(room_id, f, f))
+            char = bit.lshift(char, 24)
+            dungeon.cell[y][x + f - 1] = bit.bor(cell, char)
+
+            local c = dungeon.cell[y][x + f - 1]
+            print('', bit.band(bit.rshift(c, 24), 0xFF))
+        end
     end
 
     return dungeon
@@ -452,7 +563,7 @@ local function openRoom(dungeon, room)
         local x = sill.door_c
 
         local cell = dungeon.cell[y][x]
-        if not hasbit(cell, Cell.DOORSPACE) then
+        if not hasmask(cell, Cell.DOORSPACE) then
             print('no doorspace')
             if sill.out_id then
                 local ids = { sill.out_id, room.id }
@@ -518,6 +629,7 @@ local function generate(params)
 
     dungeon = emplaceRooms(dungeon)
     dungeon = openRooms(dungeon)
+    dungeon = labelRooms(dungeon)
 
     printDungeon(dungeon)
 

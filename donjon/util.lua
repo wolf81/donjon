@@ -50,6 +50,20 @@ function hasbit(v, b)
     return bit.band(v, b) == b
 end
 
+function hasmask(v, b)
+    return bit.band(v, b) ~= 0
+end
+
+-- just an extremely basic method to check if a table is a list 
+-- will not be correct in all situations
+function isArray(tbl)
+    if #tbl == 0 then return true end
+
+    if tbl[1] == nil then return false end
+
+    return true
+end
+
 --[[
 function clearbit(v, b)
     return bit.band(v, bit.bnot(b))
