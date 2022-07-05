@@ -15,14 +15,16 @@ local FLOAT_INT_MAX = 0x8000
 local random_i = function(max)
     -- force use of 64 bit numbers here by using hex constants and ULL 
     -- annotation, to prevent loss of precision, in line with JavaScript code
-    seed = 0x41C64E6D * seed + 0x3039
+    seed = 1103515245 * seed + 12345
     seed = bit.band(seed, 0x7FFFFFFF)
-    seed = bit.rshift(seed, 8) % max
 
-    return seed
+    return tonumber(bit.rshift(seed, 8) % max)
 end
 
--- generate a random number
+-- generate a random number between 0 and max
+--
+-- TODO: should probably work similar like Lua random with min and max option
+-- in case of 1 argument increase result by 1 (1 ... max)
 local random = function(max)
     max = max or 1
 
@@ -40,7 +42,7 @@ local computeSeed = function(str)
     local s = 42
     for i = 1, #str do
         local char = string.sub(str, i, i)
-        s = bit.lshift(s, 0x5) - s + string.byte(char)
+        s = bit.lshift(s, 5) - s + string.byte(char)
         s = bit.band(s, 0x7FFFFFFF)
     end
     return s

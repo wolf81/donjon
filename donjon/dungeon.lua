@@ -431,6 +431,7 @@ local function openDoor(dungeon, room, sill)
         local cell = dungeon.cell[y][x] 
         dungeon.cell[y][x] = bit.band(cell, bit.bnot(Cell.PERIMETER))
         dungeon.cell[y][x] = bit.bor(cell, Cell.ENTRANCE)
+        print('add entrance @ ' .. x .. '.' .. y)
     end
 
     return dungeon
@@ -441,38 +442,18 @@ local function openRoom(dungeon, room)
     if #sills == 0 then return dungeon end
 
     local n_open = allocOpens(dungeon, room)
-    print('open: ' .. n_open)
-
-    prng.randomseed(12)
-    print(prng.random(50), prng.random(30), prng.random(10))
-
-    local arr = { 'a', 'b', 'c', 'd', 'e', 'f' }
-print()
-print()
-    for i = 1, 3 do
-        local l = prng.random(#arr)
-        print(#arr, l)
-        splice(arr, l, 1)
-        print(table.concat(arr, ','))
-        local d = shift(arr)
-        print(d)
-        print()
-    end
-
-
-    error()
 
     for i = 1, n_open do
-        print('1', #sills)
-        splice(sills, prng.random(#sills))
-        print('2', #sills)
-        local sill = shift(sills)
+        local sill = splice(sills, prng.random(#sills) + 1, 1)
+
         if not sill then break end
 
         local y = sill.door_r
         local x = sill.door_c
+
         local cell = dungeon.cell[y][x]
         if not hasbit(cell, Cell.DOORSPACE) then
+            print('no doorspace')
             if sill.out_id then
                 local ids = { sill.out_id, room.id }
                 table.sort(ids)                
