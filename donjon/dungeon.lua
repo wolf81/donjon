@@ -484,7 +484,6 @@ local function openDoor(dungeon, room, sill)
         local cell = dungeon.cell[y][x] 
         dungeon.cell[y][x] = bit.band(cell, bit.bnot(Cell.PERIMETER))
         dungeon.cell[y][x] = bit.bor(cell, Cell.ENTRANCE)
-        print('add entrance @ ' .. x .. '.' .. y)
     end
 
     local door = selectFromTable(Doors[dungeon.doors])
@@ -539,9 +538,6 @@ local function labelRooms(dungeon, room)
             local char = string.byte(string.sub(room_id, f, f))
             char = bit.lshift(char, 24)
             dungeon.cell[y][x + f - 1] = bit.bor(cell, char)
-
-            local c = dungeon.cell[y][x + f - 1]
-            print('', bit.band(bit.rshift(c, 24), 0xFF))
         end
     end
 
