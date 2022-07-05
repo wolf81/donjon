@@ -12,6 +12,7 @@ local prng = require(PATH .. '.prng')
 require(PATH .. '.config')
 require(PATH .. '.util')
 require(PATH .. '.flags')
+require(PATH .. '.direction')
 
 local function printDungeon(dungeon)
     local s = ''
@@ -30,6 +31,8 @@ local function printDungeon(dungeon)
     end
     print(s)
 end
+
+local connect = {}
 
 local function init(params)
     local d_layout = DungeonLayout[params.dungeon_layout]
@@ -97,86 +100,6 @@ local function scatterRooms(dungeon, params)
 end
 --]]
 
---[[
-function emplace_room(a, b) {
-    a = a;
-    if (a.n_rooms == 999) return a;
-    var c = b || {};
-    c = set_room(a, c);
-    b = c.i * 2 + 1;
-    var d = c.j * 2 + 1,
-        e = (c.i + c.height) * 2 - 1,
-        g = (c.j + c.width) * 2 - 1;
-    if (b < 1 || e > a.max_row) return a;
-    if (d < 1 || g > a.max_col) return a;
-    var f = sound_room(a, b, d, e, g);
-    if (f.blocked) return a;
-
-    f = $H(f).keys();
-    var h = f.length;
-    if (h == 0) {
-        f = a.n_rooms + 1;
-        a.n_rooms = f
-    } else if (h == 1)
-        if (a.complex_rooms) {
-            f = f[0];
-            if (f != c.complex_id) return a
-        } else return a;
-    else return a;
-
-    for (h = b; h <= e; h++) {
-        var i;
-        for (i = d; i <= g; i++) {
-            if (a.cell[h][i] & ENTRANCE) 
-                a.cell[h][i] &= ~ESPACE;
-            else if (a.cell[h][i] & PERIMETER) 
-                a.cell[h][i] &= ~PERIMETER;
-
-            a.cell[h][i] |= ROOM | f << 6
-        }
-    }
-    h = (e - b + 1) * 10;
-    i = (g - d + 1) * 10;
-    c = {
-        id: f,
-        size: c.size,
-        row: b,
-        col: d,
-        north: b,
-        south: e,
-        west: d,
-        east: g,
-        height: h,
-        width: i,
-        door: {
-            north: [],
-            south: [],
-            west: [],
-            east: []
-        }
-    };
-    if (h = a.room[f])
-        if (h.complex) h.complex.push(c);
-        else {
-            complex = {
-                complex: [h, c]
-            };
-            a.room[f] = complex
-        }
-    else a.room[f] = c;
-    for (h = b - 1; h <= e + 1; h++) {
-        a.cell[h][d - 1] & (ROOM | ENTRANCE) || (a.cell[h][d - 1] |= PERIMETER);
-        a.cell[h][g + 1] & (ROOM | ENTRANCE) || (a.cell[h][g + 1] |= PERIMETER)
-    }
-    for (i = d - 1; i <= g + 1; i++) {
-        a.cell[b - 1][i] & (ROOM | ENTRANCE) || (a.cell[b - 1][i] |= PERIMETER);
-        a.cell[e + 1][i] & (ROOM | ENTRANCE) || (a.cell[e + 1][i] |= PERIMETER)
-    }
-    return a
-}
-
---]]
-
 -- position room
 local function setRoom(dungeon, room)
     room = room or {}
@@ -234,85 +157,6 @@ local function soundRoom(dungeon, x1, y1, x2, y2)
 
     return info
 end
-
---[[
-function emplace_room(a, b) {
-    a = a;
-    if (a.n_rooms == 999) return a;
-    var c = b || {};
-    c = set_room(a, c);
-    b = c.i * 2 + 1;
-    var d = c.j * 2 + 1,
-        e = (c.i + c.height) * 2 - 1,
-        g = (c.j + c.width) * 2 - 1;
-    if (b < 1 || e > a.max_row) return a;
-    if (d < 1 || g > a.max_col) return a;
-    var f = sound_room(a, b, d, e, g);
-    if (f.blocked) return a;
-
-    f = $H(f).keys();
-    var h = f.length;
-    if (h == 0) {
-        f = a.n_rooms + 1;
-        a.n_rooms = f
-    } else if (h == 1)
-        if (a.complex_rooms) {
-            f = f[0];
-            if (f != c.complex_id) return a
-        } else return a;
-    else return a;
-
-    for (h = b; h <= e; h++) {
-        var i;
-        for (i = d; i <= g; i++) {
-            if (a.cell[h][i] & ENTRANCE) 
-                a.cell[h][i] &= ~ESPACE;
-            else if (a.cell[h][i] & PERIMETER) 
-                a.cell[h][i] &= ~PERIMETER;
-
-            a.cell[h][i] |= ROOM | f << 6
-        }
-    }
-    h = (e - b + 1) * 10;
-    i = (g - d + 1) * 10;
-    c = {
-        id: f,
-        size: c.size,
-        row: b,
-        col: d,
-        north: b,
-        south: e,
-        west: d,
-        east: g,
-        height: h,
-        width: i,
-        door: {
-            north: [],
-            south: [],
-            west: [],
-            east: []
-        }
-    };
-    if (h = a.room[f])
-        if (h.complex) h.complex.push(c);
-        else {
-            complex = {
-                complex: [h, c]
-            };
-            a.room[f] = complex
-        }
-    else a.room[f] = c;
-    for (h = b - 1; h <= e + 1; h++) {
-        a.cell[h][d - 1] & (ROOM | ENTRANCE) || (a.cell[h][d - 1] |= PERIMETER);
-        a.cell[h][g + 1] & (ROOM | ENTRANCE) || (a.cell[h][g + 1] |= PERIMETER)
-    }
-    for (i = d - 1; i <= g + 1; i++) {
-        a.cell[b - 1][i] & (ROOM | ENTRANCE) || (a.cell[b - 1][i] |= PERIMETER);
-        a.cell[e + 1][i] & (ROOM | ENTRANCE) || (a.cell[e + 1][i] |= PERIMETER)
-    }
-    return a
-}
-]]
 
 -- add a room
 local function emplaceRoom(dungeon, room)
@@ -453,10 +297,183 @@ local function emplaceRooms(dungeon)
     return dungeon
 end
 
+--[[
+function check_sill(a, b, c, d, e) {
+    var g = c + di[e],
+        f = d + dj[e],
+        h = a[g][f];
+    if (!(h & PERIMETER)) return false;
+    if (h & BLOCK_DOOR) return false;
+    h = g + di[e];
+    var i = f + dj[e];
+    a = a[h][i];
+    if (a & BLOCKED) return false;
+    a = (a & ROOM_ID) >> 6;
+    if (a == b.id) return false;
+    return b = {
+        sill_r: c,
+        sill_c: d,
+        dir: e,
+        door_r: g,
+        door_c: f,
+        out_id: a
+    }
+}
+]]
+
+local function checkSill(dungeon, room, y, x, dir)
+    local dx, dy = unpack(Direction[dir])
+    local x1, y1 = x + dx, y + dy
+    local cell = dungeon.cell[y1][x1]
+
+    if not hasbit(cell, Cell.PERIMETER) then return false end
+    if hasbit(cell, Cell.BLOCK_DOOR) then return false end
+
+    local x2, y2 = x1 + dx, y1 + dy
+    cell = dungeon.cell[y2][x2]
+
+    if hasbit(cell, Cell.BLOCKED) then return false end
+    local room_id = bit.rshift(bit.band(cell, Cell.ROOM_ID), 6)
+
+    if room_id == room.id then return false end
+
+    return {
+        sill_r = y,
+        sill_c = x,
+        dir = dir,
+        door_r = y1,
+        door_c = x1,
+        out_id = room_id,
+    }
+end
+
+local function doorSills(dungeon, room)
+    local sills = {}
+
+    if room.complex then
+        error('not implemented')
+    else
+        local n, s, e, w = room.north, room.south, room.east, room.west
+
+        if n >= 3 then
+            for x = w, e, 2 do
+                local door = checkSill(dungeon, room, n, x, 'north')
+                if door then
+                    sills[#sills + 1] = door
+                end
+            end
+        end
+
+        if s <= dungeon.n_rows - 3 then
+            for x = w, e, 2 do
+                local door = checkSill(dungeon, room, s, x, 'south')
+                if door then
+                    sills[#sills + 1] = door
+                end
+            end            
+        end
+
+        if w >= 3 then
+            for y = n, s, 2 do
+                local door = checkSill(dungeon, room, y, w, 'west')
+                if door then
+                    sills[#sills + 1] = door
+                end
+            end                        
+        end
+
+        if e <= dungeon.n_cols - 3 then
+            for y = n, s, 2 do
+                local door = checkSill(dungeon, room, y, e, 'east')
+                if door then
+                    sills[#sills + 1] = door
+                end
+            end                        
+        end
+    end
+
+    print('sills', #sills)
+
+    return sills
+end
+
+--[[
+function alloc_opens(a, b) {
+    a = (b.south - b.north) / 2 + 1;
+    b = (b.east - b.west) / 2 + 1;
+    b = Math.floor(Math.sqrt(b * a));
+    return b = b + random(b)
+}
+]]
+local function allocOpens(dungeon, room)
+    local y = (room.south - room.north) / 2 + 1
+    local x = (room.east - room.west) / 2 + 1
+    local opens = math.floor(math.sqrt(x * y))
+    return opens + prng.random(opens)
+end
+
+local function openRoom(dungeon, room)
+    local sills = doorSills(dungeon, room)
+    if #sills == 0 then return dungeon end
+
+    local n_open = allocOpens(dungeon, room)
+    print('open: ' .. n_open)
+
+    for i = 1, n_open do
+        splice(sills, prng.random(#sills))
+        local sill = shift(sills)
+        if not sill then break end
+    end
+
+   return dungeon 
+end
+
+--[[
+var d = a;
+W = {};
+let B;
+for (B = 1; B <= d.n_rooms; B++) a: {
+    let l;
+    var g = d,
+        c = d.room[B];
+    let q = ca(g, c);
+    if (!q.length) {
+        d = g;
+        break a
+    } {
+        let p = Math.floor(Math.sqrt(((c.east - c.west) / 2 + 1) * ((c.south - c.north) / 2 + 1)));
+        var e = p + random(p)
+    }
+    let w = e;
+    for (l = 0; l < w; l++) {
+        let p = q.splice(random(q.length), 1).shift();
+        if (!p) break;
+        if (!(g.cell[p.door_r][p.door_c] & 4128768)) {
+            let r;
+            if (r = p.out_id) {
+                let x = [c.id, r].sort(N).join(",");
+                W[x] || (g = da(g, c, p), W[x] = 1)
+            } else g = da(g, c, p)
+        }
+    }
+    d = g
+]]
+local function openRooms(dungeon)
+    connect = {}
+
+    for i = 1, dungeon.n_rooms do
+        print('open room ' .. i)
+        dungeon = openRoom(dungeon, dungeon.room[i])
+    end
+
+    return dungeon
+end
+
 local function generate(params)
     local dungeon = init(params)
 
     dungeon = emplaceRooms(dungeon)
+    dungeon = openRooms(dungeon)
 
     printDungeon(dungeon)
 
