@@ -15,6 +15,7 @@ require(PATH .. '.flags')
 require(PATH .. '.direction')
 require(PATH .. '.stair_end')
 require(PATH .. '.close_end')
+require(PATH .. '.close_arc')
 
 local function keyRange(str)
     -- range up to 100, e.g. '65-00' => 65, 100
