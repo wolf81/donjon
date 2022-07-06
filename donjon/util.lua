@@ -36,6 +36,13 @@ function splice(list, start, count)
     return removed
 end
 
+-- adds items from second list to the first list
+function concat(list1, list2)
+    for _, item in ipairs(list2) do
+        list1[#list1 + 1] = item
+    end
+end
+
 -- bit manipulation functions: https://stackoverflow.com/a/263738/250164
 
 -- check if a bit is set

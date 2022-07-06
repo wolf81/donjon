@@ -587,6 +587,7 @@ local function openDoor(dungeon, room, sill)
     local sr = sill.sill_r
     local sc = sill.sill_c
     local out_id = sill.out_id
+    local dir = sill.dir
 
     local dx, dy = unpack(Direction[sill.dir])
 
@@ -603,6 +604,7 @@ local function openDoor(dungeon, room, sill)
     local d_info = {
         row = dr,
         col = dc,
+        out_id = out_id,
     }
 
     local cell = dungeon.cell[dr][dc]
@@ -629,9 +631,10 @@ local function openDoor(dungeon, room, sill)
         d_info.type = 'Portcullis'        
     end
 
-    if out_id then d_info.out_id = out_id end
+    local doors = room.door[dir] or {}
+    doors[#doors + 1] = d_info
+    room.doors = doors
 
-    room.door[#room.door + 1] = d_info
     room.last_door = d_info
 
     return dungeon
@@ -671,7 +674,7 @@ local function openRoom(dungeon, room)
         local x = sill.door_c
 
         local cell = dungeon.cell[y][x]
-        if not hasmask(cell, Cell.DOORSPACE) then
+        if hasmask(cell, Cell.DOORSPACE) ~= 0 then
             if sill.out_id then
                 local ids = { sill.out_id, room.id }
                 table.sort(ids)                
@@ -830,6 +833,97 @@ local function emplaceStairs(dungeon)
     return dungeon
 end
 
+--[[
+    var b = a.cell,
+        c;
+    for (c = 0; c <= a.n_rows; c++) {
+        var d;
+        for (d = 0; d <= a.n_cols; d++)
+            if (b[c][d] & BLOCKED) b[c][d] = NOTHING
+    }
+    a.cell = b;
+    return a
+]]
+
+local function clearBlocked(dungeon)
+    for y = 0, dungeon.n_rows - 1 do
+        for x = 0, dungeon.n_cols - 1 do
+            if hasbit(dungeon.cell[y][x], Cell.BLOCKED) then
+                dungeon.cell[y][x] = Cell.NOTHING
+            end
+        end
+    end
+
+    return dungeon
+end
+
+
+-- TODO: properly test this code
+-- I am not sure in which cases the doors actually get fixed. Perhaps this 
+-- would occur in a dense dungeon or a dungeon with complex rooms ...
+local function fixDoors(dungeon)    
+    local fixed = {}
+    local fixed_doors = {}
+
+    for _, room in ipairs(dungeon.room) do
+        local dirs = getKeys(room.door)
+
+        for _, dir in ipairs(dirs) do
+            local dir_doors = {}
+
+            for _, door in ipairs(room.door[dir]) do
+                local y, x = door.row, door.col
+                if hasmask(dungeon.cell[y][x], Cell.OPENSPACE) then
+                    error('validate')
+
+                    local door_pos = y .. ',' .. x
+                    if fixed[door_pos] then
+                        dir_doors[#dir_doors + 1] = door
+                    else
+                        local out_id = door.out_id
+                        if out_id then
+                            local out_room = dungeon.room[out_id]
+                            local out_dir = Direction.opposite(dir)
+                            door.out_id = {
+                                room_id = out_id,
+                                out_id = room_id,
+                            }
+                            table.insert(dungeon.room[out_id].door[out_dir], door)
+                        end
+
+                        dir_doors[#dir_doors + 1] = door
+                        fixed[door_pos] = true
+                    end
+                end
+
+                if #dir_doors > 0 then
+                    room.door[dir] = fixed
+                    concat(fixed_doors, fixed)
+                else
+                    room.door[dir] = {}
+                end
+            end
+        end
+    end
+
+    return dungeon
+end
+
+local function cleanup(dungeon)
+    if dungeon.remove_deadends then
+        print('remove deadends')
+    end
+
+    if dungeon.close_args then
+        print('close arcs')
+    end
+
+    dungeon = fixDoors(dungeon)
+    dungeon = clearBlocked(dungeon)
+
+    return dungeon
+end
+
 local function generate(params)
     local dungeon = init(params)
 
@@ -841,6 +935,8 @@ local function generate(params)
     if dungeon.add_stairs then
         dungeon = emplaceStairs(dungeon)
     end
+
+    dungeon = cleanup(dungeon)
 
     printDungeon(dungeon)
 
