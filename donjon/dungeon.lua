@@ -726,11 +726,69 @@ local function openRooms(dungeon)
     return dungeon
 end
 
+local function checkTunnel(cell, y, x, stair_end)
+    if stair_end.corridor then
+        for _, dyx in ipairs(stair_end.corridor) do
+            local dy, dx = unpack(dyx)
+            if cell[y + dy] then
+                if cell[y + dy][x + dx] ~= Cell.CORRIDOR then
+                    return false
+                end
+            end
+        end
+    end
+
+    if stair_end.walled then
+        for _, dyx in ipairs(stair_end.walled) do
+            local dy, dx = unpack(dyx)
+            if cell[y + dy] then
+                if hasmask(cell[y + dy][x + dx], Cell.OPENSPACE) then
+                    return false
+                end
+            end
+        end
+    end
+
+    return true
+end
+
 local function stairEnds(dungeon)
-    -- body
+    local cell = dungeon.cell
+    local stair_ends = {}
+
+    for i = 0, dungeon.n_i - 1 do
+        local y = i * 2 + 1
+        for j = 0, dungeon.n_j - 1 do
+            local x = j * 2 + 1
+            if dungeon.cell[y][x] == Cell.CORRIDOR then
+                if not hasmask(dungeon.cell[y][x], Cell.STAIRS) then
+                    local dirs = getKeys(StairEnd)
+                    for _, dir in ipairs(dirs) do
+                        if checkTunnel(dungeon, y, x, StairEnd[dir]) then
+                            local stair_end = {
+                                row = y,
+                                col = x,
+                                dir = dir,
+                            }
+                            dy, dx = unpack(StairEnd[dir].next)
+                            stair_end.next_row = y + dy
+                            stair_end.next_col = x + dx
+                            stair_ends[#stair_ends + 1] = stair_end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return stair_ends
 end
 
 local function emplaceStairs(dungeon)
+    local ends = stairEnds(dungeon)
+
+    if #ends == 0 then return dungeon end    
+
     return dungeon
 end
 
