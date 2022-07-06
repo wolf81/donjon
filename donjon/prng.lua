@@ -25,14 +25,12 @@ end
 --
 -- TODO: should probably work similar like Lua random with min and max option
 -- in case of 1 argument increase result by 1 (1 ... max)
-local random = function(max)
-    max = max or 1
-
-    if 1 < max then 
-        -- for values greater or equal to 1, return an integer
-        return random_i(max)
+local random = function(a, b)
+    if a and b then
+        return math.floor(random_i(b - a) + a)
+    elseif a then
+        return math.floor(random_i(a) + 1)
     else
-        -- otherwise return a float 
         return random_i(FLOAT_INT_MAX) / FLOAT_INT_MAX
     end
 end

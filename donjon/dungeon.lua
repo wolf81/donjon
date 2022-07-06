@@ -46,12 +46,12 @@ local function scaleTable(tbl)
 end
 
 local function selectFromList(list)
-    return list[prng.random(#list) + 1]
+    return list[prng.random(#list)]
 end
 
 local function selectFromTable(tbl)
     local scale = scaleTable(tbl)
-    scale = prng.random(scale) + 1
+    scale = prng.random(scale)
     for key, _ in pairs(tbl) do
         local a, b = keyRange(key)
         if scale >= a and scale <= b then return tbl[key] end
@@ -77,6 +77,12 @@ local function printDungeon(dungeon)
                 s = s .. '+'
             elseif hasbit(cell, Cell.PERIMETER) then
                 s = s .. '#'
+            elseif hasmask(cell, Cell.STAIRS) then
+                if hasbit(cell, Cell.STAIR_DN) then
+                    s = s .. '<'
+                else
+                    s = s .. '>'
+                end
             elseif hasbit(cell, Cell.ROOM) then
                 local c = bit.band(bit.rshift(cell, 24), 0xFF)
                 s = s .. (c ~= 0 and string.char(c) or '.')
@@ -173,23 +179,23 @@ local function setRoom(dungeon, room)
     if not room.height then
         if room.i then
             local i = math.max(dungeon.n_i - radix - room.i, 0)
-            room.height = prng.random(i < radix and i or radix) + size
+            room.height = prng.random(0, i < radix and i or radix) + size
         else
-            room.height = prng.random(radix) + size
+            room.height = prng.random(0, radix) + size
         end
     end
 
     if not room.width then
         if room.j then
             local j = math.max(dungeon.n_j - randix - room.j, 0)
-            room.width = prng.random(j < radix and j or radix) + size
+            room.width = prng.random(0, j < radix and j or radix) + size
         else
-            room.width = prng.random(radix) + size
+            room.width = prng.random(0, radix) + size
         end
     end
 
-    if not room.i then room.i = prng.random(dungeon.n_i - room.height) end
-    if not room.j then room.j = prng.random(dungeon.n_j - room.width) end
+    if not room.i then room.i = prng.random(0, dungeon.n_i - room.height) end
+    if not room.j then room.j = prng.random(0, dungeon.n_j - room.width) end
 
     return room
 end
@@ -250,8 +256,6 @@ local function emplaceRoom(dungeon, room)
     else
         return dungeon
     end
-
-    print('ROOM ' .. room_id .. ' (' .. x1 .. ', ' .. y1 .. ', ' .. x2 .. ', ' .. y2 .. ')')
 
     for x = x1, x2 do
         for y = y1, y2 do
@@ -332,7 +336,7 @@ local function shuffle(list)
     for i = #list, 1, -1 do
         -- a bit hacky to use ceil() here, but prng random needs to support 
         -- random(min, max) in order to fix properly
-        local j = math.ceil(prng.random(i))
+        local j = prng.random(i)
         local dir1, dir2 = list[i], list[j]
         list[j] = dir1
         list[i] = dir2
@@ -574,7 +578,7 @@ local function allocOpens(dungeon, room)
     local y = (room.south - room.north) / 2 + 1
     local x = (room.east - room.west) / 2 + 1
     local opens = math.floor(math.sqrt(x * y))
-    return opens + prng.random(opens)
+    return opens + prng.random(0, opens)
 end
 
 local function openDoor(dungeon, room, sill)
@@ -659,7 +663,7 @@ local function openRoom(dungeon, room)
     local n_open = allocOpens(dungeon, room)
 
     for i = 1, n_open do
-        local sill = splice(sills, prng.random(#sills) + 1, 1)
+        local sill = splice(sills, prng.random(#sills), 1)
 
         if not sill then break end
 
@@ -784,10 +788,44 @@ local function stairEnds(dungeon)
     return stair_ends
 end
 
-local function emplaceStairs(dungeon)
-    local ends = stairEnds(dungeon)
+local function allocStairs(dungeon)
+    local count = 0
 
-    if #ends == 0 then return dungeon end    
+    if dungeon.add_stairs == 'many' then
+        local area = dungeon.n_cols * dungeon.n_rows
+        count = 3 + prng.random(0, math.floor(area / 1000))
+    elseif dungeon.add_stairs == 'yes' then
+        count = 2
+    end
+
+    return count
+end
+
+local function emplaceStairs(dungeon)
+    local stair_ends = stairEnds(dungeon)
+    if #stair_ends == 0 then return dungeon end    
+
+    local n_stairs = allocStairs(dungeon)
+    if n_stairs == 0 then return dungeon end
+
+    local stairs = {}
+
+    for i = 1, n_stairs do
+        local stair = splice(stair_ends, prng.random(#stair_ends), 1)
+        if not stair then break end
+
+        local y, x = stair.row, stair.col
+        
+        local dir = i < 3 and i or math.random(2)
+        if i == 1 then
+            dungeon.cell[y][x] = bit.bor(dungeon.cell[y][x], Cell.STAIR_DN)
+            stair.key = 'down'
+        else
+            dungeon.cell[y][x] = bit.bor(dungeon.cell[y][x], Cell.STAIR_UP)
+            stair.key = 'up'
+        end
+        stairs[#stairs + 1] = stair
+    end
 
     return dungeon
 end

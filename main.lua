@@ -8,7 +8,7 @@ function love.load(args)
     print(donjon)
 
     local d = dungeon.generate({
-        seed = 'a',
+        seed = 1, --os.time(),
         dungeon_layout = 'rectangle',
         dungeon_size = 'dimin',
         room_layout = 'scattered',
