@@ -13,6 +13,7 @@ require(PATH .. '.config')
 require(PATH .. '.util')
 require(PATH .. '.flags')
 require(PATH .. '.direction')
+require(PATH .. '.stair_end')
 
 local function keyRange(str)
     -- range up to 100, e.g. '65-00' => 65, 100
@@ -725,6 +726,14 @@ local function openRooms(dungeon)
     return dungeon
 end
 
+local function stairEnds(dungeon)
+    -- body
+end
+
+local function emplaceStairs(dungeon)
+    return dungeon
+end
+
 local function generate(params)
     local dungeon = init(params)
 
@@ -732,6 +741,10 @@ local function generate(params)
     dungeon = openRooms(dungeon)
     dungeon = labelRooms(dungeon)
     dungeon = corridors(dungeon)
+
+    if dungeon.add_stairs then
+        dungeon = emplaceStairs(dungeon)
+    end
 
     printDungeon(dungeon)
 
