@@ -79,6 +79,8 @@ local function printDungeon(dungeon)
             elseif hasbit(cell, Cell.ROOM) then
                 local c = bit.band(bit.rshift(cell, 24), 0xFF)
                 s = s .. (c ~= 0 and string.char(c) or '.')
+            elseif hasbit(cell, Cell.CORRIDOR) then
+                s = s .. '.'
             else
                 s = s .. ' '
             end
@@ -325,6 +327,114 @@ local function emplaceRoom(dungeon, room)
     return dungeon
 end
 
+local function shuffle(list)
+    for i = #list, 1, -1 do
+        -- a bit hacky to use ceil() here, but prng random needs to support 
+        -- random(min, max) in order to fix properly
+        local j = math.ceil(prng.random(i))
+        local dir1, dir2 = list[i], list[j]
+        list[j] = dir1
+        list[i] = dir2
+    end
+
+    return list
+end
+
+local function tunnelDirs(dungeon, dir)
+    local dirs = shuffle({ Direction.north, Direction.south, Direction.east, Direction.west })
+
+    if dir then
+        if dungeon.straight_pct and (prng.random(100) < dungeon.straight_pct) then
+            table.insert(dirs, 1, dir)
+        end
+    end
+
+    return dirs    
+end
+
+local function delveTunnel(dungeon, y1, x1, y2, x2)
+    local y_range = { y1, y2 }
+    table.sort(y_range)
+
+    local x_range = { x1, x2 }
+    table.sort(x_range)
+
+    for y = y_range[1], y_range[2] do
+        for x = x_range[1], x_range[2] do
+            dungeon.cell[y][x] = bit.band(dungeon.cell[y][x], bit.bnot(Cell.ENTRANCE))
+            dungeon.cell[y][x] = bit.bor(dungeon.cell[y][x], Cell.CORRIDOR)
+        end
+    end
+
+    return true
+end
+
+local function soundTunnel(dungeon, y1, x1, y2, x2)
+    if y2 < 0 or y2 > dungeon.n_rows then return false end
+    if x2 < 0 or x2 > dungeon.n_cols then return false end
+
+    local y_range = { y1, y2 }
+    table.sort(y_range)
+
+    local x_range = { x1, x2 }
+    table.sort(x_range)
+
+    for y = y_range[1], y_range[2] do
+        for x = x_range[1], x_range[2] do
+            if hasmask(dungeon.cell[y][x], Cell.BLOCK_CORR) then return false end
+        end
+    end
+
+    return true
+end
+
+local function openTunnel(dungeon, y, x, dir)
+    local y1 = y * 2 + 1
+    local x1 = x * 2 + 1
+    local dx, dy = unpack(dir)
+    local y2 = (y + dy) * 2 + 1
+    local x2 = (x + dx) * 2 + 1
+    local y_mid = (y1 + y2) / 2
+    local x_mid = (x1 + x2) / 2
+
+    if soundTunnel(dungeon, y_mid, x_mid, y2, x2) then
+        return delveTunnel(dungeon, y1, x1, y2, x2)
+    end
+
+    return false
+end
+
+local function tunnel(dungeon, y, x, last_dir)
+    local dirs = tunnelDirs(dungeon, last_dir)
+
+    for _, dir in ipairs(dirs) do
+        if openTunnel(dungeon, y, x, dir) then
+            local dx, dy = unpack(dir)
+            dungeon = tunnel(dungeon, y + dy, x + dx, dir)
+        end
+    end
+
+    return dungeon
+end
+
+local function corridors(dungeon)
+    local layout = CorridorLayout[dungeon.corridor_layout]
+    dungeon.straight_pct = layout.pct
+
+    for i = 1, dungeon.n_i - 1 do
+        local y = i * 2 + 1
+
+        for j = 1, dungeon.n_j - 1 do
+            local x = j * 2 + 1
+            if bit.band(dungeon.cell[y][x], Cell.CORRIDOR) == 0 then
+                dungeon = tunnel(dungeon, i, j)
+            end
+        end
+    end
+
+    return dungeon
+end
+
 local function emplaceRooms(dungeon)
     local r_size = RoomSize[dungeon.room_size]
     local r_layout = RoomLayout[dungeon.room_layout]
@@ -448,8 +558,6 @@ local function doorSills(dungeon, room)
         end
     end
 
-    print('sills', #sills)
-
     return sills
 end
 
@@ -469,7 +577,6 @@ local function allocOpens(dungeon, room)
 end
 
 local function openDoor(dungeon, room, sill)
-    print('open door')
     local dr = sill.door_r
     local dc = sill.door_c
     local sr = sill.sill_r
@@ -560,7 +667,6 @@ local function openRoom(dungeon, room)
 
         local cell = dungeon.cell[y][x]
         if not hasmask(cell, Cell.DOORSPACE) then
-            print('no doorspace')
             if sill.out_id then
                 local ids = { sill.out_id, room.id }
                 table.sort(ids)                
@@ -613,7 +719,6 @@ local function openRooms(dungeon)
     connect = {}
 
     for i = 1, dungeon.n_rooms do
-        print('open room ' .. i)
         dungeon = openRoom(dungeon, dungeon.room[i])
     end
 
@@ -626,6 +731,7 @@ local function generate(params)
     dungeon = emplaceRooms(dungeon)
     dungeon = openRooms(dungeon)
     dungeon = labelRooms(dungeon)
+    dungeon = corridors(dungeon)
 
     printDungeon(dungeon)
 

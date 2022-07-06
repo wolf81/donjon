@@ -25,14 +25,7 @@ function splice(list, start, count)
     local removed = {}
 
     while count > 0 do
-        local v = table.remove(list, start)
-        print('v', v)
-        for k,v in pairs(v) do
-            print(k,v)
-            print()
-        end
-        removed[#removed + 1] = v
-
+        removed[#removed + 1] = table.remove(list, start)
         count = count - 1
     end
 
