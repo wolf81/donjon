@@ -7,7 +7,7 @@ CloseEnd = {
             { 1,  1 },
             { 0,  1 },
         },
-        close = { 0, 0 },
+        close = {{ 0, 0 }},
         recurse = { -1, 0 },
     },
     south = {
@@ -18,7 +18,7 @@ CloseEnd = {
             { -1,  1 },
             {  0,  1 },            
         },
-        close = { 0, 0 },
+        close = {{ 0, 0 }},
         recurse = { 1, 0 },
     },
     west = {
@@ -29,7 +29,7 @@ CloseEnd = {
             {  1, 1 },
             {  1, 0 },            
         },
-        close = { 0, 0 },
+        close = {{ 0, 0 }},
         recurse = { 0, -1 },
     },
     east = {
@@ -40,7 +40,7 @@ CloseEnd = {
             {  1, -1 },
             {  1,  0 },            
         },
-        close = { 0, 0 },
+        close = {{ 0, 0 }},
         recurse = { 0, 1 },
     },
 }
