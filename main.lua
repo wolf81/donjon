@@ -10,7 +10,7 @@ function love.load(args)
     local d = dungeon.generate({
         seed = 1, --os.time(),
         dungeon_layout = 'rectangle',
-        dungeon_size = 'gargant',
+        dungeon_size = 'dimin',
         room_layout = 'scattered',
         room_size = 'medium',
         corridor_layout = 'errant',

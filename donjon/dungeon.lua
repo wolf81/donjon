@@ -735,25 +735,23 @@ local function openRooms(dungeon)
     return dungeon
 end
 
-local function checkTunnel(cell, y, x, stair_end)
-    if stair_end.corridor then
-        for _, dyx in ipairs(stair_end.corridor) do
-            local dy, dx = unpack(dyx)
-            if cell[y + dy] then
-                if cell[y + dy][x + dx] ~= Cell.CORRIDOR then
-                    return false
-                end
+local function checkTunnel(cell, y, x, end_info)
+    for _, dyx in ipairs(end_info.corridor or {}) do
+        local dy, dx = unpack(dyx)
+        if cell[y + dy] then
+            if cell[y + dy][x + dx] ~= Cell.CORRIDOR then
+                return false
             end
         end
     end
 
-    if stair_end.walled then
-        for _, dyx in ipairs(stair_end.walled) do
-            local dy, dx = unpack(dyx)
-            if cell[y + dy] then
-                if hasmask(cell[y + dy][x + dx], Cell.OPENSPACE) then
-                    return false
-                end
+    for _, dyx in ipairs(end_info.walled or {}) do
+        local dy, dx = unpack(dyx)
+        if cell[y + dy] then
+            -- TODO: added or 0 to prevent getting to uncreachable areas when
+            -- removing deadends - check if this causes no issues ...
+            if hasmask(cell[y + dy][x + dx] or 0, Cell.OPENSPACE) then
+                return false
             end
         end
     end
@@ -911,9 +909,87 @@ local function fixDoors(dungeon)
     return dungeon
 end
 
+--[[
+function collapse_tunnels(a, b, c) {
+    var d = b == 100,
+        e;
+    for (e = 0; e < a.n_i; e++) {
+        var g = e * 2 + 1,
+            f;
+        for (f = 0; f < a.n_j; f++) {
+            var h = f * 2 + 1;
+            if (a.cell[g][h] & OPENSPACE)
+                if (!(a.cell[g][h] & STAIRS))
+                    if (d || random(100) < b) a = collapse(a, g, h, c)
+        }
+    }
+    return a
+}
+]]
+
+local function collapse(dungeon, y, x, end_info)    
+    if bit.band(dungeon.cell[y][x], Cell.OPENSPACE) == 0 then 
+        return dungeon 
+    end
+
+    for _, dir in pairs(getKeys(end_info)) do
+        if checkTunnel(dungeon.cell, y, x, end_info[dir]) then
+            for _, dyx in ipairs(end_info[dir].close) do
+                local dy, dx = unpack(dyx)
+                dungeon.cell[y + dy][x + dx] = Cell.NOTHING
+            end
+
+            local dyx = end_info[dir].open
+            if dyx then
+                dy, dx = unpack(dyx)
+                dungeon = bit.bor(dungeon.cell[y + dy][x + dx], Cell.CORRIDOR)
+            end
+
+            dyx = end_info[dir].recurse
+            if dyx then
+                dy, dx = unpack(dyx)
+                dungeon = collapse(dungeon, y + dy, x + dx, end_info)
+            end
+        end
+
+        -- end            
+    end
+
+
+    return dungeon
+end
+
+local function collapseTunnels(dungeon, pct, close)
+    local total_pct = 100
+    local remove_all = pct == 100
+
+    for i = 0, dungeon.n_i - 1 do
+        local y = i * 2 + 1
+        for j = 0, dungeon.n_j - 1 do
+            local x = j * 2 + 1 
+            local cell = dungeon.cell[y][x]
+            if bit.band(cell, Cell.OPENSPACE) ~= 0 then
+                if not hasmask(cell, Cell.STAIRS) then
+                    if remove_all or prng.random(100) < pct then
+                        dungeon = collapse(dungeon, y, x, close)
+                    end
+                end
+            end
+        end
+    end
+
+    return dungeon
+end
+
+local function removeDeadends(dungeon)
+    local remove_deadends = RemoveDeadends[dungeon.remove_deadends]
+    dungeon.remove_pct = remove_deadends.pct
+    return collapseTunnels(dungeon, remove_deadends.pct, CloseEnd)
+end
+
 local function cleanup(dungeon)
     if dungeon.remove_deadends then
-        print('remove deadends')
+        dungeon = removeDeadends(dungeon)
     end
 
     if dungeon.close_args then
